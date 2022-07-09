@@ -1,0 +1,218 @@
+---
+<<<<<<< HEAD
+title: "GO enrichment analysis of WT and GABA mutants after submergence"
+author: "Ying"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+=======
+title: "GO enrichment of WT and GABA mutants after submergence"
+author: "Ying"
+date: "7/10/2022"
+output: html_document
+>>>>>>> e29fb6740506a902bd58227d198e9adf9c6e8d6a
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<<<<<<< HEAD
+```{r load packages}
+library(tidyverse)
+library(magrittr)
+library(biomaRt)
+library(parallel)  # mclapply(), detectCores()
+library(GO.db)     # Term(), building GO tree, for enrich tests
+library(annotate)
+library(scales)
+library(pheatmap) # for heatmap
+library(dendextend) # to plot a simple dendrogram
+library(ggVennDiagram) # to plot venn.diagram
+library(here)
+
+## for Mac only
+nCores <- min(detectCores() - 1, 12) # nCores = 1 # for windows
+```
+
+```{r DEgene to collect go Results}
+# input DE genes: load DEGsSub.rds and gene2GO.rds from _R folder
+DEGsSub <- readRDS(here("_R","DEGsSub.rds"))
+gene2GO <- readRDS("../ArabidopsisRNAseq_Control/_R/gene2GO.rds")
+goSummaries <- 
+  url("https://uofabioinformaticshub.github.io/summaries2GO/data/goSummaries.RDS") %>% 
+  readRDS()
+
+# check how many DE genes have GO terms
+DEGsSub %>% 
+  lapply(function(de){
+    tibble(n.de = length(de$GeneID),
+           n.deWithGO = intersect(de$GeneID, names(gene2GO)) %>% length())
+  })
+
+#  go enrichment: Up-/Down- DE genes separated  
+goRes <- DEGs2go %>%   # all 10874 DE genes in DEGs2go
+  lapply(function(x){   # x: 6 MutantVsWt comparisions
+    x %>% 
+      split(f = .$Expr) %>% 
+      lapply(function(y){   # y: Expr Up or Down
+        DEgenes <- y$GeneID %>% 
+          intersect(names(gene2GO)) # remove DEgenes that have no GO terms
+        deGenes2GO <- gene2GO[DEgenes]
+        notDEGenes2GO <- gene2GO[setdiff(names(gene2GO), DEgenes)]
+        # genome-wide protein coding gene except genes in the DEgenes as background
+        nDE <- length(deGenes2GO) # number of DE genes that has GO terms
+        nNotDE <- length(notDEGenes2GO)
+        
+        NotdeGO <- unlist(notDEGenes2GO) %>% 
+          table %>%  
+          as.data.frame() %>% 
+          set_names(c("GO_term", "notDECount"))
+        
+        deGO <- unlist(deGenes2GO) %>% 
+          table() %>% 
+          as.data.frame() %>% 
+          set_names(c("GO_term", "DECount")) %>% 
+          left_join(NotdeGO, by = "GO_term") %>% 
+          as_tibble() %>% 
+          filter(DECount > 1) %>%  # only consider go terms with >=2 DEgenes
+          mutate(notDECount = ifelse(is.na(notDECount), 0 , notDECount)) %>% 
+          # remove NAs in notDECount cells after left_join
+          arrange(GO_term) %>% 
+          droplevels()
+        
+        deGO %>% 
+          split(f = .$GO_term) %>% 
+          lapply(function(df){    # for a given GO term, do the following stats
+            mat <- 
+              matrix(c(df$DECount[1], # get element in the 1st row of both columns
+                       df$notDECount[1], nDE - df$DECount[1], nNotDE - df$notDECount),
+                     nrow = 2) %>% 
+              set_colnames(c("Genes with GO term", "Genes without GO term")) %>% 
+              set_rownames(c("DE genes", "Control genes"))
+            ft <- fisher.test(mat)
+            mutate(df,
+                   N = sum(mat[, "Genes with GO term"]), # how many genes in that GO
+                   Expect = nDE * df$notDECount[1] / nNotDE,
+                   DEGsRatio =  paste0(DECount, "/", N), # DE genes / all genes in that GO
+                   GeneRatio = paste0(DECount, "/", nDE),
+                   # DE genes among all DEGs (that has a GO term) in WT/Mutant 
+                   BgRatio = paste0(notDECount, "/", nNotDE),
+                   p = ft$p.value)
+          }) %>% 
+          bind_rows() %>% 
+          mutate(adjP =p.adjust(p, "bonferroni"),
+                 FDR = p.adjust(p, "fdr"),
+                 Descrip = Term(as.character(GO_term)),
+                 Expr = unique(y$Expr)) %>% 
+          arrange(p) %>% 
+          left_join(goSummaries, by = c("GO_term" = "id")) %>% 
+          filter(DECount > Expect) %>% # because fisher.test is two-sided
+          dplyr::select(GO_term, Descrip, DECount, Expect, N, everything())
+      }) %>% 
+      bind_rows()
+  })
+
+goRes  <- names(goRes) %>%  
+  lapply(function(x){     # x is each one of the 6 MutantVsWt comparisons
+    goRes[[x]] %>% 
+      mutate(Group = x) %>% 
+      dplyr::select(-notDECount)
+  }) %>% 
+  bind_rows() %>% 
+  split(.$Expr)
+
+write_csv(goRes[["Up"]], "_Results/GoUpResults_Sub.csv")
+write_csv(goRes[["Down"]], "_Results/GoDownResults_Sub.csv")
+
+```
+
+
+```{r heatmaps for significant goRes}
+# filter significant go results
+goRes_filtered <- names(goRes) %>% 
+  lapply(function(x){
+    goRes[[x]] %>% dplyr::filter(adjP < 0.01 & shortest_path >=4)})
+names(goRes_filtered) = names(goRes)
+
+# up-, down- DE genes separated GO heat maps -------------
+goResHeat <- goRes_filtered %>% lapply(function(x){
+  x %>% 
+    dplyr::select("GO_term", "Descrip", "p", "ontology", "Group") %>% 
+    dplyr::mutate("-LogP" = -log10(p)) %>% 
+    reshape2::dcast(GO_term + Descrip + ontology ~ Group, value.var = '-LogP') %>%
+    unite(col = "GO", c("GO_term", "Descrip"), sep = " ") %>% 
+    column_to_rownames(var = "GO") %>% 
+    dplyr::mutate_all(~replace(., is.na(.), 0)) %>% 
+    dplyr::select(1,8,3,4,5,2,6,7) # te-order rows
+})
+
+# check how many shared GO terms in Up- and Down- results
+intersect(rownames(goResHeat$Down),rownames(goResHeat$Up))
+
+# create ontology annotations and labels
+goResHeat_annos <- goResHeat %>% lapply(function(x){
+  x = bind_cols(x %>% dplyr::select("ontology"))
+})
+
+# plot heat maps separately for GO-Up and GO-Down results
+myGenotype <- c("WT","gad1*","gad1KO","gad2-1","gad1245","gad2OE","pop2-8")
+range(goResHeat$Up[,2:8]); goResHeat$Up[,2:8] %>% colnames()
+p_goResUp <-
+  goResHeat$Up[,2:8] %>% 
+  set_colnames(myGenotype) %>% 
+  pheatmap(color = colorRampPalette(c("white", "red"))(149),           
+           breaks = c(seq(0,40,length.out=120),
+                      seq(42,76,length.out = 30)),
+           annotation_row = goResHeat_annos$Up,
+           show_rownames = FALSE, cluster_cols = FALSE,
+           fontsize = 8, fontsize_col = 9, annotation_names_row = FALSE
+           )
+
+range(goResHeat$Down[,2:8]); goResHeat$Down[,2:8] %>% colnames()
+p_goResDown <-
+  goResHeat$Down[,2:8] %>% 
+  set_colnames(myGenotype) %>% 
+  pheatmap(color = colorRampPalette(c("white", "blue"))(150), 
+           breaks = c(seq(0,50,length.out=140),
+                      seq(54,87,length.out = 10)),
+           annotation_row = goResHeat_annos$Down,
+           cutree_rows = 1, show_rownames = FALSE,   
+           fontsize = 8, fontsize_col = 9,
+           angle_col = 45,annotation_names_row = FALSE
+           )
+
+# plot non-clustered heatmaps using reordered terms
+ordered_goUp <-  # repeat for ordered_goDown
+  lapply(p_goResUp$tree_row$order, function(r){
+  goResHeat$Up[2:8][r,] %>% round(2)
+}) %>% 
+  bind_rows()
+
+ordered_goUp %>%
+  set_colnames(myGenotype) %>% 
+  pheatmap(color = colorRampPalette(c("white", "red"))(149),           
+           breaks = c(seq(0,40,length.out=120),
+                      seq(42,76,length.out = 30)),
+           annotation_row = goResHeat_annos$Up,
+           cluster_cols = FALSE, cluster_rows = FALSE,
+          fontsize = 7, fontsize_col = 9,
+           show_rownames = FALSE,
+           annotation_names_row = FALSE,
+           angle_col = 45)
+
+ordered_goDown %>% 
+  set_colnames(myGenotype) %>% 
+  pheatmap(color = colorRampPalette(c("white", "blue"))(150), 
+           breaks = c(seq(0,50,length.out=140),
+                      seq(54,87,length.out = 10)),
+           annotation_row = goResHeat_annos$Down,
+           show_rownames = FALSE,
+           fontsize = 7, fontsize_col = 9,
+           angle_col = 45,
+           cluster_rows = FALSE, cluster_cols = FALSE, 
+           annotation_names_row = FALSE)
+
+```
+=======
+>>>>>>> e29fb6740506a902bd58227d198e9adf9c6e8d6a
