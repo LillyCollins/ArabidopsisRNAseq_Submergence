@@ -2,18 +2,14 @@
 title: "DEGs of WT and GABA mutants after submergence"
 author: "Ying"
 output: html_document
-<<<<<<< HEAD
 editor_options: 
   chunk_output_type: console
-=======
->>>>>>> e29fb6740506a902bd58227d198e9adf9c6e8d6a
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-<<<<<<< HEAD
 ```{r load libraries}
 library(tidyverse)
 library(magrittr)
@@ -251,5 +247,4 @@ DEGs2go %>% saveRDS(file.path("_R", "DEGsSub.rds"))
 countList %>% saveRDS(file.path("_R", "countList.rds"))
 
 ```
-=======
->>>>>>> e29fb6740506a902bd58227d198e9adf9c6e8d6a
+

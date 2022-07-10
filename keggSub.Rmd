@@ -1,19 +1,15 @@
 ---
 title: "KEGG pathway analysis of WT and GABA mutants after submergence"
 author: "Ying"
-<<<<<<< HEAD
 editor_options: 
-  chunk_output_type: console
-=======
 output: html_document
->>>>>>> e29fb6740506a902bd58227d198e9adf9c6e8d6a
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-<<<<<<< HEAD
 ```{r load libraries}
 # library(KEGGREST)
 library(tidyverse)
@@ -191,5 +187,3 @@ pathview(gene.data = mylogFC,
          cex=0.15
          )
 ```
-=======
->>>>>>> e29fb6740506a902bd58227d198e9adf9c6e8d6a
