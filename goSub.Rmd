@@ -44,7 +44,7 @@ DEGsSub %>%
 
 #  go enrichment: Up-/Down- DE genes separated  
 goRes <- DEGs2go %>%   # all 10874 DE genes in DEGs2go
-  lapply(function(x){   # x: 6 MutantVsWt comparisions
+  lapply(function(x){   # x: 7 SubVsCont comparisions
     x %>% 
       split(f = .$Expr) %>% 
       lapply(function(y){   # y: Expr Up or Down
@@ -106,7 +106,7 @@ goRes <- DEGs2go %>%   # all 10874 DE genes in DEGs2go
   })
 
 goRes  <- names(goRes) %>%  
-  lapply(function(x){     # x is each one of the 6 MutantVsWt comparisons
+  lapply(function(x){     # x is each one of the 7 subVScont comparisons
     goRes[[x]] %>% 
       mutate(Group = x) %>% 
       dplyr::select(-notDECount)

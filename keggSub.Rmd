@@ -11,7 +11,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r load libraries}
-# library(KEGGREST)
 library(tidyverse)
 library(magrittr)
 library(pathview)
@@ -36,7 +35,7 @@ DEGsSub %>%
 
 # KEGG pathway enrichment analysis
 keggRes <- DEGsSub %>%
-  lapply(function(x){  # x: 7 Submg Vs Control comparisions
+  lapply(function(x){  # x: 7 Submg Vs Control comparisons
     
     DEgenes <- x$GeneID %>% 
       intersect(names(gene2KEGG)) # remove DE genes that have no pathways
@@ -146,7 +145,7 @@ keggRes4Heat_ordered %>% rownames_to_column("keggID") %>%
 ri <- korg[,"kegg.code"] == "ath"
 korg[ri,]
 
-# collect gene data (log2 fold change) of all 6 comparasons to Pathview 
+# collect gene data (log2 fold change) of all 7 comparisons to Pathview 
 logFC <- DEGsSub %>%  # DEGs2KEGG
   lapply(function(x){
     x[c("GeneID", "comparison", "logFC")]
