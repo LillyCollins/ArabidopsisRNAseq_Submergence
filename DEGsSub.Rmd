@@ -245,6 +245,6 @@ decorate_annotation("DEGs Intersections", {
 ```{r save DEGs and CountList to _R directory}
 DEGs2go %>% saveRDS(file.path("_R", "DEGsSub.rds"))
 countList %>% saveRDS(file.path("_R", "countList.rds"))
-
+counts_Disp %>% saveRDS(file.path("_R", "counts_Disp.rds"))
 ```
 
